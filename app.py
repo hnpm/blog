@@ -1,9 +1,14 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, url_for
 from flask_bootstrap import Bootstrap
+from flask_ckeditor import CKEditorField, CKEditor
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, URL
+from datetime import date
 
 app = Flask(__name__)
-
+ckeditor = CKEditor(app)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 Bootstrap(app)
 
@@ -25,6 +30,15 @@ class BlogPost(db.Model):
 db.create_all()
 
 
+class CreatePostForm(FlaskForm):
+    title = StringField("Blog Post Title", validators=[DataRequired()])
+    subtitle = StringField("Subtitle", validators=[DataRequired()])
+    author = StringField("Your Name", validators=[DataRequired()])
+    img_url = StringField("Blog Image URL", validators=[DataRequired(), URL()])
+    body = CKEditorField("Blog Content", validators=[DataRequired()])
+    submit = SubmitField("Submit Post")
+
+
 @app.route('/')
 def home():
     posts = BlogPost.query.all()
@@ -32,10 +46,27 @@ def home():
 
 
 @app.route('/post/<int:post_id>')
-def post(post_id):
+def show_post(post_id):
     requested_post = BlogPost.query.get(post_id)
-    print(requested_post.body)
     return render_template('post.html', post=requested_post)
+
+
+@app.route("/new-post", methods=["GET", "POST"])
+def create_post():
+    form = CreatePostForm()
+    if form.validate_on_submit():
+        new_post = BlogPost(
+            title=form.title.data,
+            subtitle=form.subtitle.data,
+            body=form.body.data,
+            img_url=form.img_url.data,
+            author=form.author.data,
+            date=date.today().strftime('%B %d, %Y')
+        )
+        db.session.add(new_post)
+        db.session.commit()
+        return redirect(url_for('home'))
+    return render_template("create-post.html", form=form)
 
 
 @app.route('/about')

@@ -1,6 +1,6 @@
 {% include 'header.html' %}
         <!-- Page Header-->
-        <header class="masthead" style="background-image: url('{{ post.image_url }}')">
+        <header class="masthead" style="background-image: url('{{ post.img_url }}')">
             <div class="overlay"></div>
             <div class="container">
                 <div class="row">
@@ -24,7 +24,7 @@
                 <div class="row">
                     <div class="col-lg-8 col-md-10 mx-auto">
                         <p>
-                            {{ post.body }}
+                            {{ post.body|safe }}
                         </p>
                     </div>
                 </div>
