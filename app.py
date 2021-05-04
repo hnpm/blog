@@ -3,7 +3,7 @@ from datetime import date
 from flask import Flask, render_template, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
-from flask_login import UserMixin, LoginManager, login_user
+from flask_login import UserMixin, LoginManager, login_user, current_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -51,13 +51,13 @@ db.create_all()
 @app.route('/')
 def home():
     posts = Post.query.all()
-    return render_template('index.html', posts=posts)
+    return render_template('index.html', posts=posts, current_user=current_user)
 
 
 @app.route('/post/<int:post_id>')
 def show_post(post_id):
     requested_post = Post.query.get(post_id)
-    return render_template('post.html', post=requested_post)
+    return render_template('post.html', post=requested_post, current_user=current_user)
 
 
 @app.route("/new-post", methods=['GET', 'POST'])
@@ -75,7 +75,7 @@ def create_post():
         db.session.add(new_post)
         db.session.commit()
         return redirect(url_for('home'))
-    return render_template('create-post.html', form=form)
+    return render_template('create-post.html', form=form, current_user=current_user)
 
 
 @app.route("/edit-post/<int:post_id>", methods=['GET', 'POST'])
@@ -96,7 +96,7 @@ def edit_post(post_id):
         post.body = edit_form.body.data
         db.session.commit()
         return redirect(url_for('show_post', post_id=post.id))
-    return render_template('create-post.html', form=edit_form, is_edit=True)
+    return render_template('create-post.html', form=edit_form, is_edit=True, current_user=current_user)
 
 
 @app.route("/delete/<int:post_id>")
@@ -120,7 +120,7 @@ def register():
         db.session.commit()
         login_user(new_user)
         return redirect(url_for("home"))
-    return render_template("register.html", form=form)
+    return render_template("register.html", form=form, current_user=current_user)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -139,17 +139,23 @@ def login():
         else:
             login_user(user)
             return redirect(url_for('home'))
-    return render_template("login.html", form=form)
+    return render_template("login.html", form=form, current_user=current_user)
+
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
 
 
 @app.route('/about')
 def about():
-    return render_template('about.html')
+    return render_template('about.html', current_user=current_user)
 
 
 @app.route('/contact')
 def contact():
-    return render_template('contact.html')
+    return render_template('contact.html', current_user=current_user)
 
 
 if __name__ == '__main__':
