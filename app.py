@@ -1,6 +1,7 @@
 from datetime import date
+from functools import wraps
 
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, abort
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from flask_login import UserMixin, LoginManager, login_user, current_user, logout_user
@@ -25,6 +26,15 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+def admin_only(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.id != 1:
+            return abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 class Post(db.Model):
@@ -61,6 +71,7 @@ def show_post(post_id):
 
 
 @app.route("/new-post", methods=['GET', 'POST'])
+@admin_only
 def create_post():
     form = CreatePostForm()
     if form.validate_on_submit():
@@ -79,6 +90,7 @@ def create_post():
 
 
 @app.route("/edit-post/<int:post_id>", methods=['GET', 'POST'])
+@admin_only
 def edit_post(post_id):
     post = Post.query.get(post_id)
     edit_form = CreatePostForm(
@@ -100,6 +112,7 @@ def edit_post(post_id):
 
 
 @app.route("/delete/<int:post_id>")
+@admin_only
 def delete_post(post_id):
     post = Post.query.get(post_id)
     db.session.delete(post)
