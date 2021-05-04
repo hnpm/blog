@@ -1,13 +1,13 @@
 from datetime import date
 
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
-from flask_login import UserMixin
+from flask_login import UserMixin, LoginManager, login_user
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from form import CreatePostForm, RegisterForm
+from form import CreatePostForm, RegisterForm, LoginForm
 
 app = Flask(__name__)
 ckeditor = CKEditor(app)
@@ -17,6 +17,14 @@ Bootstrap(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 
 class Post(db.Model):
@@ -52,7 +60,7 @@ def show_post(post_id):
     return render_template('post.html', post=requested_post)
 
 
-@app.route("/new-post", methods=["GET", "POST"])
+@app.route("/new-post", methods=['GET', 'POST'])
 def create_post():
     form = CreatePostForm()
     if form.validate_on_submit():
@@ -70,7 +78,7 @@ def create_post():
     return render_template('create-post.html', form=form)
 
 
-@app.route("/edit-post/<int:post_id>", methods=["GET", "POST"])
+@app.route("/edit-post/<int:post_id>", methods=['GET', 'POST'])
 def edit_post(post_id):
     post = Post.query.get(post_id)
     edit_form = CreatePostForm(
@@ -99,24 +107,39 @@ def delete_post(post_id):
     return redirect(url_for('home'))
 
 
-@app.route('/register', methods=["GET", "POST"])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        hash_and_salted_password = generate_password_hash(
-            form.password.data,
-            method='pbkdf2:sha256',
-            salt_length=8
-        )
-        new_user = User(
-            email=form.email.data,
-            name=form.name.data,
-            password=hash_and_salted_password,
-        )
+        if User.query.filter_by(email=form.email.data).first():
+            flash("You've already signed up with that email, log in instead!")
+            return redirect(url_for('login'))
+        hash_and_salted_password = generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=8)
+        new_user = User(email=form.email.data, name=form.name.data, password=hash_and_salted_password)
         db.session.add(new_user)
         db.session.commit()
+        login_user(new_user)
         return redirect(url_for("home"))
     return render_template("register.html", form=form)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash("That email does not exist, please try again.")
+            return redirect(url_for('login'))
+        elif not check_password_hash(user.password, password):
+            flash('Password incorrect, please try again.')
+            return redirect(url_for('login'))
+        else:
+            login_user(user)
+            return redirect(url_for('home'))
+    return render_template("login.html", form=form)
 
 
 @app.route('/about')
