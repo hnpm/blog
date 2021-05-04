@@ -90,6 +90,14 @@ def edit_post(post_id):
     return render_template('create-post.html', form=edit_form, is_edit=True)
 
 
+@app.route("/delete/<int:post_id>")
+def delete_post(post_id):
+    post = BlogPost.query.get(post_id)
+    db.session.delete(post)
+    db.session.commit()
+    return redirect(url_for('home'))
+
+
 @app.route('/about')
 def about():
     return render_template('about.html')
